@@ -201,6 +201,110 @@
 #define HW_END_WITH_HCI_RESET    FALSE
 #endif
 
+#define SCO_PCM_PARAM_SIZE              5
+#define PCM_DATA_FORMAT_PARAM_SIZE      5
+
+/* SCO_PCM_ROUTING
+
+    0 : PCM
+    1 : Transport
+    2 : Codec
+    3 : I2S
+*/
+#ifndef SCO_PCM_ROUTING
+#define SCO_PCM_ROUTING                 0
+#endif
+
+/* SCO_PCM_IF_CLOCK_RATE
+
+    NOTICE: suggested to be consistent with SCO_I2SPCM_IF_CLOCK_RATE
+
+    0 : 128K
+    1 : 256K
+    2 : 512K
+    3 : 1024K
+    4 : 2048K
+*/
+#ifndef SCO_PCM_IF_CLOCK_RATE
+#define SCO_PCM_IF_CLOCK_RATE           4
+#endif
+
+/* SCO_PCM_IF_FRAME_TYPE - 0=Short, 1=Long */
+#ifndef SCO_PCM_IF_FRAME_TYPE
+#define SCO_PCM_IF_FRAME_TYPE           0
+#endif
+
+/* SCO_PCM_IF_SYNC_MODE
+
+    NOTICE: in most usage cases the value will be the same as
+            SCO_PCM_IF_CLOCK_MODE setting
+
+    0 : Slave
+    1 : Master
+*/
+#ifndef SCO_PCM_IF_SYNC_MODE
+#define SCO_PCM_IF_SYNC_MODE            0
+#endif
+
+/* SCO_PCM_IF_CLOCK_MODE
+
+    NOTICE: suggested to be consistent with SCO_I2SPCM_IF_ROLE
+
+    0 : Slave
+    1 : Master
+*/
+#ifndef SCO_PCM_IF_CLOCK_MODE
+#define SCO_PCM_IF_CLOCK_MODE           0
+#endif
+
+#define PCM_DATA_FORMAT_PARAM_SIZE      5
+
+/* PCM_DATA_FMT_SHIFT_MODE
+
+    0 : MSB first
+    1 : LSB first
+*/
+#ifndef PCM_DATA_FMT_SHIFT_MODE
+#define PCM_DATA_FMT_SHIFT_MODE         0
+#endif
+
+/* PCM_DATA_FMT_FILL_BITS
+
+    Specifies the value with which to fill unused bits
+    if Fill_Method is set to programmable
+*/
+#ifndef PCM_DATA_FMT_FILL_BITS
+#define PCM_DATA_FMT_FILL_BITS          0
+#endif
+
+/* PCM_DATA_FMT_FILL_METHOD
+
+    0 : 0's
+    1 : 1's
+    2 : Signed
+    3 : Programmable
+*/
+#ifndef PCM_DATA_FMT_FILL_METHOD
+#define PCM_DATA_FMT_FILL_METHOD        3
+#endif
+
+/* PCM_DATA_FMT_FILL_NUM
+
+    Specifies the number of bits to be filled
+*/
+#ifndef PCM_DATA_FMT_FILL_NUM
+#define PCM_DATA_FMT_FILL_NUM           3
+#endif
+
+/* PCM_DATA_FMT_JUSTIFY_MODE
+
+    0 : Left justify (fill data shifted out last)
+    1 : Right justify (fill data shifted out first)
+*/
+#ifndef PCM_DATA_FMT_JUSTIFY_MODE
+#define PCM_DATA_FMT_JUSTIFY_MODE       0
+#endif
+
 /******************************************************************************
 **  Extern variables and functions
 ******************************************************************************/

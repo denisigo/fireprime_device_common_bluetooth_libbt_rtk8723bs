@@ -27,6 +27,7 @@
  ******************************************************************************/
 
 #define LOG_TAG "bt_hwcfg"
+#define LOG_NDEBUG 0
 
 #include <utils/Log.h>
 #include <sys/types.h>
@@ -116,6 +117,8 @@ int gFinalSpeed = 0;
 
 #define HCI_VSC_UPDATE_BAUDRATE                 0xFC17
 #define HCI_VSC_DOWNLOAD_FW_PATCH               0xFC20
+#define HCI_VSC_WRITE_SCO_PCM_INT_PARAM         0xFC1C
+#define HCI_VSC_WRITE_PCM_DATA_FORMAT_PARAM     0xFC1E
 #define HCI_VENDOR_READ_RTK_ROM_VERISION        0xFC6D
 #define HCI_READ_LMP                            0x1001
 
@@ -224,6 +227,24 @@ static bt_lpm_param_t lpm_param =
     0,  /* not applicable */
     0,  /* not applicable */
     LPM_PULSED_HOST_WAKE
+};
+
+static uint8_t bt_sco_param[SCO_PCM_PARAM_SIZE] =
+{
+    SCO_PCM_ROUTING,
+    SCO_PCM_IF_CLOCK_RATE,
+    SCO_PCM_IF_FRAME_TYPE,
+    SCO_PCM_IF_SYNC_MODE,
+    SCO_PCM_IF_CLOCK_MODE
+};
+
+static uint8_t bt_pcm_data_fmt_param[PCM_DATA_FORMAT_PARAM_SIZE] =
+{
+    PCM_DATA_FMT_SHIFT_MODE,
+    PCM_DATA_FMT_FILL_BITS,
+    PCM_DATA_FMT_FILL_METHOD,
+    PCM_DATA_FMT_FILL_NUM,
+    PCM_DATA_FMT_JUSTIFY_MODE
 };
 
 /*********************************add for multi patch start**************************/
@@ -1912,3 +1933,125 @@ void hw_epilog_process(void)
     }
 }
 #endif // (HW_END_WITH_HCI_RESET == TRUE)
+
+
+
+/*******************************************************************************
+**
+** Function         hw_sco_cfg_cback
+**
+** Description      Callback function for SCO configuration rquest
+**
+** Returns          None
+**
+*******************************************************************************/
+void hw_sco_cfg_cback(void *p_mem)
+{
+    HC_BT_HDR *p_evt_buf = (HC_BT_HDR *) p_mem;
+    uint8_t     *p;
+    uint16_t    opcode;
+    HC_BT_HDR  *p_buf=NULL;
+
+    uint8_t status = *((uint8_t *)(p_evt_buf + 1) + HCI_EVT_CMD_CMPL_STATUS_RET_BYTE);
+    ALOGI("hw_sco_cfg_cback status %d", status);
+
+    p = (uint8_t *)(p_evt_buf + 1) + HCI_EVT_CMD_CMPL_OPCODE;
+    STREAM_TO_UINT16(opcode,p);
+
+    /* Free the RX event buffer */
+    if (bt_vendor_cbacks)
+        bt_vendor_cbacks->dealloc(p_evt_buf);
+
+    if (opcode == HCI_VSC_WRITE_SCO_PCM_INT_PARAM)
+    {
+        ALOGD("hw_sco_cfg_cback opcode == HCI_VSC_WRITE_SCO_PCM_INT_PARAM");
+        uint8_t ret = FALSE;
+
+        /* Ask a new buffer to hold WRITE_PCM_DATA_FORMAT_PARAM command */
+        if (bt_vendor_cbacks)
+            p_buf = (HC_BT_HDR *) bt_vendor_cbacks->alloc(BT_HC_HDR_SIZE + \
+                                                HCI_CMD_PREAMBLE_SIZE + \
+                                                PCM_DATA_FORMAT_PARAM_SIZE);
+        if (p_buf)
+        {
+            ALOGD("hw_sco_cfg_cback if (p_buf)");
+            p_buf->event = MSG_STACK_TO_HC_HCI_CMD;
+            p_buf->offset = 0;
+            p_buf->layer_specific = 0;
+            p_buf->len = HCI_CMD_PREAMBLE_SIZE + PCM_DATA_FORMAT_PARAM_SIZE;
+
+            p = (uint8_t *) (p_buf + 1);
+            UINT16_TO_STREAM(p, HCI_VSC_WRITE_PCM_DATA_FORMAT_PARAM);
+            *p++ = PCM_DATA_FORMAT_PARAM_SIZE;
+            memcpy(p, &bt_pcm_data_fmt_param, PCM_DATA_FORMAT_PARAM_SIZE);
+
+            if ((ret = bt_vendor_cbacks->xmit_cb(HCI_VSC_WRITE_PCM_DATA_FORMAT_PARAM,\
+                                           p_buf, hw_sco_cfg_cback)) == FALSE)
+            {
+                ALOGD("hw_sco_cfg_cback HCI_VSC_WRITE_PCM_DATA_FORMAT_PARAM TRUE");
+                bt_vendor_cbacks->dealloc(p_buf);
+            }
+            else
+                return;
+        }
+    }
+
+    ALOGD("hw_sco_cfg_cback BT_VND_OP_RESULT_SUCCESS");
+    if (bt_vendor_cbacks)
+        bt_vendor_cbacks->scocfg_cb(BT_VND_OP_RESULT_SUCCESS);
+}
+
+
+/*******************************************************************************
+**
+** Function         hw_sco_config
+**
+** Description      Configure SCO related hardware settings
+**
+** Returns          None
+**
+*******************************************************************************/
+void hw_sco_config(void)
+{
+    HC_BT_HDR  *p_buf = NULL;
+    uint8_t     *p, ret;
+
+    ALOGI("hw_sco_config");
+
+    uint16_t cmd_u16 = HCI_CMD_PREAMBLE_SIZE + SCO_PCM_PARAM_SIZE;
+
+    if (bt_vendor_cbacks)
+        p_buf = (HC_BT_HDR *) bt_vendor_cbacks->alloc(BT_HC_HDR_SIZE+cmd_u16);
+
+    if (p_buf)
+    {
+        p_buf->event = MSG_STACK_TO_HC_HCI_CMD;
+        p_buf->offset = 0;
+        p_buf->layer_specific = 0;
+        p_buf->len = cmd_u16;
+
+        p = (uint8_t *) (p_buf + 1);
+
+        UINT16_TO_STREAM(p, HCI_VSC_WRITE_SCO_PCM_INT_PARAM);
+        *p++ = SCO_PCM_PARAM_SIZE;
+        memcpy(p, &bt_sco_param, SCO_PCM_PARAM_SIZE);
+        cmd_u16 = HCI_VSC_WRITE_SCO_PCM_INT_PARAM;
+        ALOGI("SCO PCM configure {%d, %d, %d, %d, %d}",
+           bt_sco_param[0], bt_sco_param[1], bt_sco_param[2], bt_sco_param[3], \
+           bt_sco_param[4]);
+
+        if ((ret=bt_vendor_cbacks->xmit_cb(cmd_u16, p_buf, hw_sco_cfg_cback)) \
+             == FALSE)
+        {
+            bt_vendor_cbacks->dealloc(p_buf);
+        }
+        else
+            return;
+    }
+
+    if (bt_vendor_cbacks)
+    {
+        ALOGE("vendor lib scocfg aborted");
+        bt_vendor_cbacks->scocfg_cb(BT_VND_OP_RESULT_FAIL);
+    }
+}

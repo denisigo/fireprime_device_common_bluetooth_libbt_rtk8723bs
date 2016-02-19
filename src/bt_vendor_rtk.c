@@ -50,6 +50,7 @@ void hw_config_start(void);
 #if (HW_END_WITH_HCI_RESET == TRUE)
 void hw_epilog_process(void);
 #endif
+void hw_sco_config(void);
 
 /******************************************************************************
 **  Variables
@@ -143,7 +144,8 @@ static int op(bt_vendor_opcode_t opcode, void *param)
 
         case BT_VND_OP_SCO_CFG:
             {
-                retval = -1;
+                ALOGD("SCO config");
+                hw_sco_config();
             }
             break;
 
@@ -186,6 +188,13 @@ static int op(bt_vendor_opcode_t opcode, void *param)
 
             }
             break;
+
+        case BT_VND_OP_SET_AUDIO_STATE:
+            {
+
+            }
+            break;
+
         case BT_VND_OP_EPILOG:
             {
 #if (HW_END_WITH_HCI_RESET == FALSE)
